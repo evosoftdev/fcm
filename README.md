@@ -243,8 +243,8 @@ The guide to set up an iOS app to get notifications is here: [Setting up a FCM C
 ## ChangeLog
 
 ### 2.0.0
-- Change FCM constructor #
-- Add validate_only for FCM#send_v1 #
+- Change FCM constructor #118
+- Add validate_only for FCM#send_v1 #118
 
 ### 1.0.8
 - caches calls to `Google::Auth::ServiceAccountCredentials` #103
