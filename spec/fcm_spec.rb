@@ -511,8 +511,12 @@ describe FCM do
       end
 
       it "should send a post request" do
-        response = instance.add(key_name, project_id, notification_key, registration_ids)
-        response.should eq(
+        instance.add(
+          key_name,
+          project_id,
+          notification_key,
+          registration_ids
+        ).should eq(
           headers: {},
           status_code: 200,
           response: "success",
@@ -621,7 +625,7 @@ describe FCM do
     context "when json_key_path is an IO" do
       let(:json_key_path) { StringIO.new("hey") }
 
-      it "can be an IO object" do
+      it 'can be an IO object' do
         expect(instance.__send__(:json_key).class).to eq(StringIO)
       end
     end

@@ -12,7 +12,12 @@ class FCM
   INSTANCE_ID_API = "https://iid.googleapis.com"
   TOPIC_REGEX = /[a-zA-Z0-9\-_.~%]+/
 
-  def initialize(api_key: nil, json_key_path: nil, project_name: nil, options: {})
+  def initialize(
+    api_key: nil,
+    json_key_path: nil,
+    project_name: nil,
+    options: {}
+  )
     raise ArgumentError if api_key.nil? && json_key_path.nil?
 
     @api_key = api_key
@@ -53,14 +58,12 @@ class FCM
     return if @project_name.empty?
 
     post_body = { 'message': message }
-    post_body["validate_only"] = validate_only unless validate_only.nil?
+    post_body['validate_only'] = validate_only unless validate_only.nil?
     extra_headers = {
       'Authorization' => "Bearer #{jwt_token}"
     }
     for_uri(BASE_URI_V1, extra_headers) do |connection|
-      response = connection.post(
-        "#{@project_name}/messages:send", post_body.to_json
-      )
+      response = connection.post "#{@project_name}/messages:send", post_body.to_json
       build_response(response)
     end
   end
