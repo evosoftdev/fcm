@@ -27,9 +27,9 @@ To use this gem, you need to instantiate a client with your firebase credentials
 
 ```ruby
 fcm = FCM.new(
-  API_TOKEN,
-  GOOGLE_APPLICATION_CREDENTIALS_PATH,
-  FIREBASE_PROJECT_ID
+  api_key: API_TOKEN,
+  json_key_path: GOOGLE_APPLICATION_CREDENTIALS_PATH,
+  project_name: FIREBASE_PROJECT_ID
 )
 ```
 
@@ -40,9 +40,8 @@ The easiest way to provide them is to pass here an absolute path to a file with 
 
 ```ruby
 fcm = FCM.new(
-  API_TOKEN,
-  '/path/to/credentials.json',
-  FIREBASE_PROJECT_ID
+  json_key_path: '/path/to/credentials.json',
+  project_name: FIREBASE_PROJECT_ID
 )
 ```
 
@@ -50,9 +49,8 @@ As per their secret nature, you might not want to have them in your repository. 
 
 ```ruby
 fcm = FCM.new(
-  API_TOKEN,
-  StringIO.new(ENV.fetch('FIREBASE_CREDENTIALS')),
-  FIREBASE_PROJECT_ID
+  json_key_path: StringIO.new(ENV.fetch('FIREBASE_CREDENTIALS')),
+  project_name: FIREBASE_PROJECT_ID
 )
 
 ```
@@ -65,9 +63,8 @@ To migrate to HTTP v1 see: https://firebase.google.com/docs/cloud-messaging/migr
 
 ```ruby
 fcm = FCM.new(
-  API_TOKEN,
-  GOOGLE_APPLICATION_CREDENTIALS_PATH,
-  FIREBASE_PROJECT_ID
+  json_key_path: GOOGLE_APPLICATION_CREDENTIALS_PATH,
+  project_name: FIREBASE_PROJECT_ID
 )
 message = {
   'topic': "89023", # OR token if you want to send to a specific device
@@ -111,7 +108,7 @@ Example sending notifications:
 ```ruby
 require 'fcm'
 
-fcm = FCM.new("my_server_key")
+fcm = FCM.new(api_key: "my_server_key")
 
 registration_ids= ["12", "13"] # an array of one or more client registration tokens
 
@@ -244,6 +241,10 @@ You can find a guide to implement an Android Client app to receive notifications
 The guide to set up an iOS app to get notifications is here: [Setting up a FCM Client App on iOS](https://firebase.google.com/docs/cloud-messaging/ios/client).
 
 ## ChangeLog
+
+### 2.0.0
+- Change FCM constructor #
+- Add validate_only for FCM#send_v1 #
 
 ### 1.0.8
 - caches calls to `Google::Auth::ServiceAccountCredentials` #103
