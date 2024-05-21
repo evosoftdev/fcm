@@ -615,14 +615,14 @@ describe FCM do
     end
   end
 
-  describe "credentials path" do
-    let(:json_key_path) { "README.md" }
+  describe 'credentials path' do
+    let(:json_key_path) { 'README.md' }
 
-    it "can be a path to a file" do
+    it 'can be a path to a file' do
       expect(instance.__send__(:json_key).class).to eq(File)
     end
 
-    context "when json_key_path is an IO" do
+    context 'when json_key_path is an IO' do
       let(:json_key_path) { StringIO.new("hey") }
 
       it 'can be an IO object' do
