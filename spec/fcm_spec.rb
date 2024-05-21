@@ -14,9 +14,12 @@ describe FCM do
   let(:valid_condition) { "'TopicA' in topics && ('TopicB' in topics || 'TopicC' in topics)" }
   let(:invalid_condition) { "'TopicA' in topics and some other text ('TopicB' in topics || 'TopicC' in topics)" }
   let(:invalid_condition_topic) { "'TopicA$' in topics" }
+  let(:json_key_path) { nil }
+  let(:project_name) { nil }
+  let(:instance) { described_class.new(api_key: api_key, json_key_path: json_key_path, project_name: project_name) }
 
   it "should raise an error if the api key is not provided" do
-    expect { FCM.new }.to raise_error(ArgumentError)
+    expect { described_class.new }.to raise_error(ArgumentError)
   end
 
   it "should raise error if time_to_live is given" do
@@ -24,6 +27,9 @@ describe FCM do
   end
 
   describe "#send_v1" do
+    subject(:send_v1) { instance.send_v1(send_v1_params, validate_only: validate_only) }
+
+    let(:validate_only) { nil }
     let(:project_name) { "project_name" }
     let(:send_v1_url) { "#{FCM::BASE_URI_V1}#{project_name}/messages:send" }
     let(:access_token) { "access_token" }
@@ -87,11 +93,28 @@ describe FCM do
     end
 
     it 'should send notification of HTTP V1 using POST to FCM server' do
-      fcm = FCM.new(api_key, json_key_path, project_name)
-      fcm.send_v1(send_v1_params).should eq(
+      send_v1.should eq(
         response: 'success', body: '{}', headers: {}, status_code: 200
       )
       stub_fcm_send_v1_request.should have_been_made.times(1)
+    end
+
+    context "when validate_only" do
+      let(:validate_only) { true }
+      let(:valid_request_v1_body) do
+        {
+          message: send_v1_params,
+          validate_only: validate_only
+        }
+      end
+
+      it "sends body with validate_only" do
+        expect(send_v1).to include body: "{}",
+                            headers: {},
+                            status_code: 200,
+                            response: "success"
+        stub_fcm_send_v1_request.should have_been_made.times(1)
+      end
     end
   end
 
@@ -146,14 +169,12 @@ describe FCM do
     end
 
     it "should send notification using POST to FCM server" do
-      fcm = FCM.new(api_key)
-      fcm.send(registration_ids).should eq(response: "success", body: "{}", headers: {}, status_code: 200, canonical_ids: [], not_registered_ids: [])
+      instance.send(registration_ids).should eq(response: "success", body: "{}", headers: {}, status_code: 200, canonical_ids: [], not_registered_ids: [])
       stub_fcm_send_request.should have_been_made.times(1)
     end
 
     it "should send notification using POST to FCM if id provided as string" do
-      fcm = FCM.new(api_key)
-      fcm.send(registration_id).should eq(response: "success", body: "{}", headers: {}, status_code: 200, canonical_ids: [], not_registered_ids: [])
+      instance.send(registration_id).should eq(response: "success", body: "{}", headers: {}, status_code: 200, canonical_ids: [], not_registered_ids: [])
       stub_fcm_send_request.should have_been_made.times(1)
     end
 
@@ -164,11 +185,9 @@ describe FCM do
                 headers: valid_request_headers)
           .to_return(status: 200, body: "", headers: {})
       end
-      before do
-      end
+
       it "should send the data in a post request to fcm" do
-        fcm = FCM.new(api_key)
-        fcm.send(registration_ids, data: { score: "5x1", time: "15:10" })
+        instance.send(registration_ids, data: { score: "5x1", time: "15:10" })
         stub_with_data.should have_been_requested
       end
     end
@@ -189,14 +208,12 @@ describe FCM do
 
       describe "#send_to_topic" do
         it "should send the data in a post request to fcm" do
-          fcm = FCM.new(api_key)
-          fcm.send_to_topic(valid_topic, data: { score: "5x1", time: "15:10" })
+          instance.send_to_topic(valid_topic, data: { score: "5x1", time: "15:10" })
           stub_with_valid_topic.should have_been_requested
         end
 
         it "should not send to invalid topics" do
-          fcm = FCM.new(api_key)
-          fcm.send_to_topic(invalid_topic, data: { score: "5x1", time: "15:10" })
+          instance.send_to_topic(invalid_topic, data: { score: "5x1", time: "15:10" })
           stub_with_invalid_topic.should_not have_been_requested
         end
       end
@@ -224,20 +241,17 @@ describe FCM do
 
       describe "#send_to_topic_condition" do
         it "should send the data in a post request to fcm" do
-          fcm = FCM.new(api_key)
-          fcm.send_to_topic_condition(valid_condition, data: { score: "5x1", time: "15:10" })
+          instance.send_to_topic_condition(valid_condition, data: { score: "5x1", time: "15:10" })
           stub_with_valid_condition.should have_been_requested
         end
 
         it "should not send to invalid conditions" do
-          fcm = FCM.new(api_key)
-          fcm.send_to_topic_condition(invalid_condition, data: { score: "5x1", time: "15:10" })
+          instance.send_to_topic_condition(invalid_condition, data: { score: "5x1", time: "15:10" })
           stub_with_invalid_condition.should_not have_been_requested
         end
 
         it "should not send to invalid topics in a condition" do
-          fcm = FCM.new(api_key)
-          fcm.send_to_topic_condition(invalid_condition_topic, data: { score: "5x1", time: "15:10" })
+          instance.send_to_topic_condition(invalid_condition_topic, data: { score: "5x1", time: "15:10" })
           stub_with_invalid_condition_topic.should_not have_been_requested
         end
       end
@@ -251,8 +265,6 @@ describe FCM do
         }
       end
 
-      subject { FCM.new(api_key) }
-
       context "on failure code 400" do
         before do
           stub_request(:post, send_url).with(
@@ -265,10 +277,12 @@ describe FCM do
           )
         end
         it "should not send notification due to 400" do
-          subject.send(registration_ids).should eq(body: "{}",
-                                                   headers: {},
-                                                   response: "Only applies for JSON requests. Indicates that the request could not be parsed as JSON, or it contained invalid fields.",
-                                                   status_code: 400)
+          instance.send(registration_ids).should eq(
+            body: "{}",
+            headers: {},
+            response: "Only applies for JSON requests. Indicates that the request could not be parsed as JSON, or it contained invalid fields.",
+            status_code: 400
+          )
         end
       end
 
@@ -285,10 +299,12 @@ describe FCM do
         end
 
         it "should not send notification due to 401" do
-          subject.send(registration_ids).should eq(body: "{}",
-                                                   headers: {},
-                                                   response: "There was an error authenticating the sender account.",
-                                                   status_code: 401)
+          instance.send(registration_ids).should eq(
+            body: "{}",
+            headers: {},
+            response: "There was an error authenticating the sender account.",
+            status_code: 401
+          )
         end
       end
 
@@ -305,10 +321,12 @@ describe FCM do
         end
 
         it "should not send notification due to 503" do
-          subject.send(registration_ids).should eq(body: "{}",
-                                                   headers: {},
-                                                   response: "Server is temporarily unavailable.",
-                                                   status_code: 503)
+          instance.send(registration_ids).should eq(
+            body: "{}",
+            headers: {},
+            response: "Server is temporarily unavailable.",
+            status_code: 503
+          )
         end
       end
 
@@ -325,10 +343,12 @@ describe FCM do
         end
 
         it "should not send notification due to 599" do
-          subject.send(registration_ids).should eq(body: '{"body-key" => "Body value"}',
-                                                   headers: { "header-key" => "Header value" },
-                                                   response: "There was an internal error in the FCM server while trying to process the request.",
-                                                   status_code: 599)
+          instance.send(registration_ids).should eq(
+            body: '{"body-key" => "Body value"}',
+            headers: { "header-key" => "Header value" },
+            response: "There was an internal error in the FCM server while trying to process the request.",
+            status_code: 599
+          )
         end
       end
     end
@@ -347,8 +367,6 @@ describe FCM do
         }
       end
 
-      subject { FCM.new(api_key) }
-
       before do
         stub_request(:post, send_url).with(
           mock_request_attributes
@@ -361,7 +379,7 @@ describe FCM do
       end
 
       it "should contain canonical_ids" do
-        response = subject.send(registration_ids)
+        response = instance.send(registration_ids)
 
         response.should eq(headers: {},
                            canonical_ids: [{ old: "42", new: "43" }],
@@ -373,8 +391,6 @@ describe FCM do
     end
 
     context "when send_notification responds with NotRegistered" do
-      subject { FCM.new(api_key) }
-
       let(:mock_request_attributes) do
         {
           body: valid_request_body.to_json,
@@ -399,7 +415,7 @@ describe FCM do
       end
 
       it "should contain not_registered_ids" do
-        response = subject.send(registration_ids)
+        response = instance.send(registration_ids)
         response.should eq(
           headers: {},
           canonical_ids: [],
@@ -433,8 +449,6 @@ describe FCM do
       }
     end
 
-    subject { FCM.new(api_key) }
-
     # ref: https://firebase.google.com/docs/cloud-messaging/notifications#managing-device-groups-on-the-app-server
     context "create" do
       let(:valid_request_body) do
@@ -461,7 +475,7 @@ describe FCM do
       end
 
       it "should send a post request" do
-        response = subject.create(key_name, project_id, registration_ids)
+        response = instance.create(key_name, project_id, registration_ids)
         response.should eq(
           headers: {},
           status_code: 200,
@@ -497,8 +511,12 @@ describe FCM do
       end
 
       it "should send a post request" do
-        response = subject.add(key_name, project_id, notification_key, registration_ids)
-        response.should eq(
+        instance.add(
+          key_name,
+          project_id,
+          notification_key,
+          registration_ids
+        ).should eq(
           headers: {},
           status_code: 200,
           response: "success",
@@ -533,7 +551,7 @@ describe FCM do
       end
 
       it "should send a post request" do
-        response = subject.remove(key_name, project_id, notification_key, registration_ids)
+        response = instance.remove(key_name, project_id, notification_key, registration_ids)
         response.should eq(
           headers: {},
           status_code: 200,
@@ -550,15 +568,12 @@ describe FCM do
       endpoint = stub_request(:get, uri).with(
         headers: {
           "Content-Type" => "application/json",
-          "Authorization" => "key=TEST_SERVER_KEY",
+          "Authorization" => "key=#{api_key}",
           "project_id" => "TEST_PROJECT_ID",
         },
         query: { notification_key_name: "TEST_KEY_NAME" },
       )
-      client = FCM.new("TEST_SERVER_KEY")
-
-      client.recover_notification_key("TEST_KEY_NAME", "TEST_PROJECT_ID")
-
+      instance.recover_notification_key("TEST_KEY_NAME", "TEST_PROJECT_ID")
       expect(endpoint).to have_been_requested
     end
   end
@@ -568,15 +583,14 @@ describe FCM do
   end
 
   describe 'getting instance info' do
-    subject(:get_info) { client.get_instance_id_info(registration_id, options) }
+    subject(:get_info) { instance.get_instance_id_info(registration_id, options) }
 
     let(:options) { nil }
-    let(:client) { FCM.new('TEST_SERVER_KEY') }
     let(:base_uri) { "#{FCM::INSTANCE_ID_API}/iid/info" }
     let(:uri) { "#{base_uri}/#{registration_id}" }
     let(:mock_request_attributes) do
       { headers: {
-        'Authorization' => 'key=TEST_SERVER_KEY',
+        'Authorization' => "key=#{api_key}",
         'Content-Type' => 'application/json'
       } }
     end
@@ -601,15 +615,19 @@ describe FCM do
     end
   end
 
-  describe "credentials path" do
-    it "can be a path to a file" do
-      fcm = FCM.new("test", "README.md")
-      expect(fcm.__send__(:json_key).class).to eq(File)
+  describe 'credentials path' do
+    let(:json_key_path) { 'README.md' }
+
+    it 'can be a path to a file' do
+      expect(instance.__send__(:json_key).class).to eq(File)
     end
 
-    it "can be an IO object" do
-      fcm = FCM.new("test", StringIO.new("hey"))
-      expect(fcm.__send__(:json_key).class).to eq(StringIO)
+    context 'when json_key_path is an IO' do
+      let(:json_key_path) { StringIO.new("hey") }
+
+      it 'can be an IO object' do
+        expect(instance.__send__(:json_key).class).to eq(StringIO)
+      end
     end
   end
 end
